@@ -1,0 +1,129 @@
+Program.Sub.ScreenSU.Start
+Program.Sub.ScreenSU.End
+
+Program.Sub.Preflight.Start
+
+Variable.UDT.uList.Define("Schedule_No",String,SCHEDULE_NO)
+Variable.UDT.uList.Define("JOB",String,JOB)
+Variable.UDT.uList.Define("SUFFIX",String,SUFFIX)
+Variable.UDT.uList.Define("Pick_line",String,PICK_LINE)
+Variable.UDT.uList.Define("Seq",String,SEQ)
+Variable.UDT.uList.Define("Part",String,PART)
+Variable.UDT.uList.Define("Bin",String,BIN)
+Variable.UDT.uList.Define("Location",String,LOCATION)
+Variable.UDT.uList.Define("Router",String,ROUTER)
+Variable.UDT.uList.Define("Customer",String,CUSTOMER)
+Variable.UDT.uList.Define("UM",String,UM)
+Variable.UDT.uList.Define("Description",String,DESCRIPTION)
+Variable.UDT.uList.Define("Est_Hrs",Float,Est_Hrs)
+Variable.UDT.uList.Define("Act_Hrs",Float,ACT_HRS)
+Variable.UDT.uList.Define("Date_Due",String,DATE_DUE)
+Variable.UDT.uList.Define("JOB_DESC",String,JOB_DESC)
+Variable.UDT.uList.Define("JOB_QTY",Float,JOB_QTY)
+Variable.UDT.uList.Define("Customer_Name",String,CUSTOMER_NAME)
+Variable.UDT.uList.Define("ONHAND_QTY",Float,ONHAND_QTY)
+Variable.UDT.uList.Define("Sort_Code",String,SORT_CODE)
+Variable.UDT.uList.Define("Rec_Type",String,REC_TYPE)
+Variable.UDT.uList.Define("Serial_Num",String,SERIAL_NUM)
+Variable.UDT.uList.Define("Lot",String,LOT)
+Variable.UDT.uList.Define("Heat",String,HEAT)
+
+Variable.UDT.uList.Define("Terminal_No",String,Terminal_NO)
+Variable.UDT.uList.Define("Due_Date",String,DUE_DATE)
+Variable.UDT.uList.Define("Memo",String)
+Variable.uGlobal.uList.Declare("uList")
+Variable.Global.sNewpage.Declare(String)
+Variable.Global.sProgram.Declare(String)
+Program.Sub.Preflight.End
+
+Program.Sub.Main.Start
+'ERM
+'03/28/2012
+
+F.ODBC.Connection!con.OpenConnection(V.Ambient.PDSN,V.Ambient.PUser,V.Ambient.PPass)
+
+F.Intrinsic.Control.If(V.Caller.Hook,=,16090)
+	F.Intrinsic.Control.If(V.Passed.009001,=,"001801")
+		V.Global.sNewpage.Set(V.Passed.009002)
+		V.Global.sProgram.Set(V.Passed.009000)
+		V.Passed.CANCEL.Set(1)
+		F.Intrinsic.Control.CallSub(Loadudt)
+	F.Intrinsic.Control.Else
+		F.Intrinsic.Control.End
+	F.Intrinsic.Control.EndIf
+F.Intrinsic.Control.EndIf
+
+
+Program.Sub.Main.End
+
+Program.Sub.LoadUDT.Start
+V.Local.sSQL.Declare(String)
+V.Local.sRet.Declare(String)
+V.Local.sPart.Declare(String)
+V.Local.bRecType.Declare(Boolean,False)
+V.Local.i.Declare(Long)
+V.Local.sMemo.Declare(String)
+V.Local.sParam.Declare(String)
+V.Local.sParamVal.Declare(String)
+V.Local.sReportName.Declare(String)
+V.Local.iReport.Declare(Long)
+
+F.Intrinsic.String.Concat("Select * From GCG_3600_MAT_PICK_LIST where Terminal_No = '",V.Caller.Terminal,"' Order By Job,Suffix,Seq,rec_type",V.Local.sSQL)
+F.ODBC.Connection!con.OpenRecordsetRO("rst",V.Local.sSQL)
+F.Intrinsic.Control.If(V.ODBC.con!rst.EOF,=,False)
+	F.Intrinsic.Variable.LoadUDTFromRecordset("con","rst","V.uGlobal.uList",False)
+F.Intrinsic.Control.EndIf
+F.ODBC.con!rst.Close
+
+F.Intrinsic.Control.For(V.Local.i,V.uGlobal.uList.LBound,V.uGlobal.uList.UBound,1)
+	F.Intrinsic.Control.If(V.Local.bRecType,=,True)
+		F.Intrinsic.Control.If(V.uGlobal.uList(v.Local.i)!Rec_Type,=,"C")
+			V.Local.bRecType.Set(False)
+			V.uGlobal.uList(v.Local.i)!Part.Set(V.Local.sPart)
+			V.uGlobal.uList(v.Local.i)!Memo.Set(V.uGlobal.uList(v.Local.i)!Description)
+			V.Local.sMemo.Set(V.uGlobal.uList(v.Local.i)!Memo)
+			F.Intrinsic.Math.Sub(V.Local.i,1,V.Local.i)
+			V.uGlobal.uList(v.Local.i)!Memo.Set(V.Local.sMemo)
+		F.Intrinsic.Math.Add(V.Local.i,1,V.Local.i)
+		F.Intrinsic.Control.Else
+			F.Intrinsic.Control.If(V.uGlobal.uList(v.Local.i)!Rec_Type,=,"L1")
+				V.Local.bRecType.Set(True)
+			F.Intrinsic.Control.Else
+				V.Local.bRecType.Set(False)
+			F.Intrinsic.Control.EndIf
+		F.Intrinsic.Control.EndIf
+	F.Intrinsic.Control.Else
+		F.Intrinsic.Control.If(V.uGlobal.uList(v.Local.i)!Rec_Type,=,"L1")
+			V.Local.sPart.Set(V.uGlobal.uList(v.Local.i)!Part)
+			V.Local.bRecType.Set(True)
+		F.Intrinsic.Control.EndIf
+	F.Intrinsic.Control.EndIf
+F.Intrinsic.Control.Next(V.Local.i)
+
+F.Intrinsic.String.Concat("Delete From GCG_3600_MAT_PICK_LIST where Terminal_No = '",V.Caller.Terminal,"'",V.Local.sSQL)
+F.ODBC.Connection!con.Execute(V.Local.sSQL)
+
+F.Intrinsic.String.Concat("Select * From GCG_3600_MAT_PICK_LIST where Terminal_No = '",V.Caller.Terminal,"'",V.Local.sSQL)
+F.ODBC.Connection!con.OpenRecordsetRW("rst",V.Local.sSQL)
+F.Intrinsic.Variable.SetUDTFieldReference(V.uGlobal.uList!Memo,"MEMO")
+F.Intrinsic.Variable.SaveUDTToRecordset("con","rst","v.uGlobal.uList")
+F.ODBC.con!rst.Close
+'F.Intrinsic.Debug.InvokeDebugger
+'F.Intrinsic.Debug.Stop
+V.Local.sParam.Set("Terminal*!*NEWPAGE*!*Program")
+F.Intrinsic.String.Concat(V.Caller.Terminal,"*!*",V.Global.sNewpage,"*!*",V.Global.sProgram,V.Local.sParamVal)
+F.Intrinsic.String.Split(V.Local.sParam,"*!*",V.Local.sParam)
+F.Intrinsic.String.Split(V.Local.sParamVal,"*!*",V.Local.sParamVal)
+'F.Intrinsic.String.Concat(V.Caller.BusintDir,"\CUSTOM\SF_MatPickList_WIM.rpt",V.Local.sReportName)
+'F.Global.BI.InitializeReport("",V.Local.sReportName,V.Local.iReport)
+F.Global.BI.GetIDFromName("GCG_3600_SF_MatPickList_WIM.rpt",V.Local.iReport)
+F.Global.BI.PrintReport(V.Local.iReport,0,V.Local.sParam,V.Local.sParamVal,"",False)
+
+Program.Sub.LoadUDT.End
+
+Program.Sub.Comments.Start
+${$0$}$GCG_MATL_PICK_LIST$}$ERIC$}$3/28/2012
+${$3$}$0$}$$}$-1$}$-1$}$$}$1/1/1900$}$For GKD
+Custom Hook/Ment Utem
+Program.Sub.Comments.End
+
